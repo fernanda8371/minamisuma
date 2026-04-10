@@ -92,6 +92,12 @@ struct CaregiverDashboardView: View {
             .sheet(isPresented: $showRequestSheet) {
                 CaregiverRequestSheet(safetyController: safetyController)
             }
+            .onAppear {
+                safetyController.startPolling()
+            }
+            .onDisappear {
+                safetyController.stopPolling()
+            }
         }
     }
     

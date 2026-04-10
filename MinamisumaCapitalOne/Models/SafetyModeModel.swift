@@ -148,19 +148,61 @@ enum CaregiverPermissionLevel: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Caregiver Request
+// MARK: - Caregiver Request (local)
 
 struct CaregiverRequest: Codable {
     var permissionLevel: CaregiverPermissionLevel
     var transferLimit: Double?
     var withdrawalLimit: Double?
     var requestedAt: Date
-    
+
     init(permissionLevel: CaregiverPermissionLevel, transferLimit: Double? = nil, withdrawalLimit: Double? = nil) {
         self.permissionLevel = permissionLevel
         self.transferLimit = transferLimit
         self.withdrawalLimit = withdrawalLimit
         self.requestedAt = Date()
+    }
+}
+
+// MARK: - Caregiver Request (Supabase DB)
+
+struct DBCaregiverRequest: Codable, Identifiable {
+    var id: UUID
+    var permissionLevel: String
+    var transferLimit: Double?
+    var withdrawalLimit: Double?
+    var status: String // "pending", "approved", "denied"
+    var requestedAt: Date?
+    var respondedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case permissionLevel = "permission_level"
+        case transferLimit = "transfer_limit"
+        case withdrawalLimit = "withdrawal_limit"
+        case status
+        case requestedAt = "requested_at"
+        case respondedAt = "responded_at"
+    }
+
+    init(permissionLevel: CaregiverPermissionLevel, transferLimit: Double? = nil, withdrawalLimit: Double? = nil) {
+        self.id = UUID()
+        self.permissionLevel = permissionLevel.rawValue
+        self.transferLimit = transferLimit
+        self.withdrawalLimit = withdrawalLimit
+        self.status = "pending"
+        self.requestedAt = Date()
+        self.respondedAt = nil
+    }
+
+    /// Convert to local CaregiverRequest
+    func toLocal() -> CaregiverRequest? {
+        guard let level = CaregiverPermissionLevel(rawValue: permissionLevel) else { return nil }
+        return CaregiverRequest(
+            permissionLevel: level,
+            transferLimit: transferLimit,
+            withdrawalLimit: withdrawalLimit
+        )
     }
 }
 

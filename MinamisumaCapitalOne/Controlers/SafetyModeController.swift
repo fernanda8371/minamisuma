@@ -3,16 +3,18 @@
 //  MinamisumaCapitalOne
 //
 //  Cognitive Decline Safety Mode — pattern detection & mode management
+//  Syncs caregiver requests via Supabase for cross-device demo
 //
 
 import Foundation
 import Observation
+import Supabase
 
 @Observable
 final class SafetyModeController {
-    
+
     // MARK: - State
-    
+
     var config: SafetyModeConfig {
         didSet { saveConfig() }
     }
@@ -21,14 +23,13 @@ final class SafetyModeController {
     var isCaregiverMode: Bool {
         didSet { UserDefaults.standard.set(isCaregiverMode, forKey: "isCaregiverMode") }
     }
-    
-    // Caregiver request system — caregiver requests, client must approve
-    var pendingRequest: CaregiverRequest? {
-        didSet { savePendingRequest() }
-    }
+
+    // Caregiver request system — synced via Supabase
+    var pendingRequest: CaregiverRequest?
+    var pendingDBRequestId: UUID?
     var hasPendingCaregiverRequest: Bool { pendingRequest != nil }
     var showPendingRequestAlert: Bool = false
-    
+
     // Active permission level (after client approved)
     var activePermissionLevel: CaregiverPermissionLevel? {
         didSet {
@@ -39,32 +40,27 @@ final class SafetyModeController {
             }
         }
     }
-    
+
     // When in Co-Pilot mode, client needs caregiver approval to change limits
     var hasPendingLimitChangeRequest: Bool {
         didSet { UserDefaults.standard.set(hasPendingLimitChangeRequest, forKey: "pendingLimitChange") }
     }
-    
+
     // Thresholds for detection
     private let unusualWithdrawalThreshold: Double = 3000.0
-    private let repeatedTransferWindow: TimeInterval = 3600 // 1 hour
+    private let repeatedTransferWindow: TimeInterval = 3600
     private let rapidTransactionCount = 3
-    private let rapidTransactionWindow: TimeInterval = 300 // 5 minutes
-    
+    private let rapidTransactionWindow: TimeInterval = 300
+
+    private let dbTable = "caregiver_requests"
+    private var pollingTask: Task<Void, Never>?
+
     // MARK: - Init
-    
+
     init() {
         self.isCaregiverMode = UserDefaults.standard.bool(forKey: "isCaregiverMode")
         self.hasPendingLimitChangeRequest = UserDefaults.standard.bool(forKey: "pendingLimitChange")
-        
-        // Load pending request
-        if let reqData = UserDefaults.standard.data(forKey: "pendingCaregiverRequest"),
-           let saved = try? JSONDecoder().decode(CaregiverRequest.self, from: reqData) {
-            self.pendingRequest = saved
-        } else {
-            self.pendingRequest = nil
-        }
-        
+
         // Load active permission level
         if let levelStr = UserDefaults.standard.string(forKey: "activePermissionLevel"),
            let level = CaregiverPermissionLevel(rawValue: levelStr) {
@@ -72,22 +68,29 @@ final class SafetyModeController {
         } else {
             self.activePermissionLevel = nil
         }
-        
+
         if let data = UserDefaults.standard.data(forKey: "safetyModeConfig"),
            let saved = try? JSONDecoder().decode(SafetyModeConfig.self, from: data) {
             self.config = saved
         } else {
             self.config = .default
         }
-        
+
         if let eventsData = UserDefaults.standard.data(forKey: "behaviorEvents"),
            let saved = try? JSONDecoder().decode([BehaviorEvent].self, from: eventsData) {
             self.behaviorEvents = saved
         }
+
+        // Fetch any existing pending request from DB
+        Task { await fetchPendingRequest() }
     }
-    
+
+    deinit {
+        pollingTask?.cancel()
+    }
+
     // MARK: - Safety Mode State
-    
+
     var currentState: SafetyModeState {
         if config.isEnabled {
             return .active(config: config)
@@ -98,11 +101,11 @@ final class SafetyModeController {
         }
         return .inactive
     }
-    
+
     var isActive: Bool { config.isEnabled }
-    
+
     // MARK: - Activate / Deactivate
-    
+
     func activateSafetyMode(by activator: String = "user") {
         config.isEnabled = true
         config.requireTransactionApproval = true
@@ -110,31 +113,69 @@ final class SafetyModeController {
         config.activatedAt = Date()
         config.activatedBy = activator
     }
-    
+
     func deactivateSafetyMode() {
         config.isEnabled = false
         config.requireTransactionApproval = false
         config.notifyTrustedContact = false
         config.activatedAt = nil
+        activePermissionLevel = nil
     }
-    
-    // MARK: - Caregiver Request Flow
-    
-    /// Caregiver requests activation with a specific permission level
+
+    // MARK: - Supabase Caregiver Request Flow
+
+    /// Caregiver sends a request — writes to Supabase DB
     func requestActivationFromCaregiver(permission: CaregiverPermissionLevel, transferLimit: Double? = nil, withdrawalLimit: Double? = nil) {
-        pendingRequest = CaregiverRequest(
+        let dbRequest = DBCaregiverRequest(
             permissionLevel: permission,
             transferLimit: transferLimit,
             withdrawalLimit: withdrawalLimit
         )
+
+        Task {
+            do {
+                try await SupabaseManager.client
+                    .from(dbTable)
+                    .insert(dbRequest)
+                    .execute()
+                await fetchPendingRequest()
+            } catch {
+                print("Supabase insert caregiver request error: \(error)")
+            }
+        }
     }
-    
-    /// Client approves the caregiver's request
+
+    /// Fetch the latest pending request from Supabase
+    @MainActor
+    func fetchPendingRequest() async {
+        do {
+            let results: [DBCaregiverRequest] = try await SupabaseManager.client
+                .from(dbTable)
+                .select()
+                .eq("status", value: "pending")
+                .order("requested_at", ascending: false)
+                .limit(1)
+                .execute()
+                .value
+
+            if let dbReq = results.first, let local = dbReq.toLocal() {
+                self.pendingRequest = local
+                self.pendingDBRequestId = dbReq.id
+            } else {
+                self.pendingRequest = nil
+                self.pendingDBRequestId = nil
+            }
+        } catch {
+            print("Supabase fetch pending request error: \(error)")
+        }
+    }
+
+    /// Client approves — updates DB status to "approved"
     func approveCaregiver() {
         guard let request = pendingRequest else { return }
-        
+
         activePermissionLevel = request.permissionLevel
-        
+
         switch request.permissionLevel {
         case .viewOnly:
             config.isEnabled = true
@@ -161,40 +202,79 @@ final class SafetyModeController {
             config.activatedAt = Date()
             config.activatedBy = "caregiver_copilot"
         }
-        
+
+        // Update DB status
+        if let dbId = pendingDBRequestId {
+            Task {
+                do {
+                    try await SupabaseManager.client
+                        .from(dbTable)
+                        .update(["status": "approved", "responded_at": ISO8601DateFormatter().string(from: Date())])
+                        .eq("id", value: dbId.uuidString)
+                        .execute()
+                } catch {
+                    print("Supabase approve error: \(error)")
+                }
+            }
+        }
+
         pendingRequest = nil
+        pendingDBRequestId = nil
     }
-    
-    /// Client denies the caregiver's request
+
+    /// Client denies — updates DB status to "denied"
     func denyCaregiver() {
+        if let dbId = pendingDBRequestId {
+            Task {
+                do {
+                    try await SupabaseManager.client
+                        .from(dbTable)
+                        .update(["status": "denied", "responded_at": ISO8601DateFormatter().string(from: Date())])
+                        .eq("id", value: dbId.uuidString)
+                        .execute()
+                } catch {
+                    print("Supabase deny error: \(error)")
+                }
+            }
+        }
         pendingRequest = nil
+        pendingDBRequestId = nil
     }
-    
+
     /// Whether the client can edit limits (blocked in Co-Pilot mode)
     var clientCanEditLimits: Bool {
         activePermissionLevel != .fullCoPilot
     }
-    
-    private func savePendingRequest() {
-        if let request = pendingRequest,
-           let data = try? JSONEncoder().encode(request) {
-            UserDefaults.standard.set(data, forKey: "pendingCaregiverRequest")
-        } else {
-            UserDefaults.standard.removeObject(forKey: "pendingCaregiverRequest")
+
+    // MARK: - Polling (for cross-device sync)
+
+    /// Start polling Supabase every few seconds — call when view appears
+    func startPolling() {
+        pollingTask?.cancel()
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.fetchPendingRequest()
+                try? await Task.sleep(for: .seconds(3))
+            }
         }
     }
-    
+
+    /// Stop polling — call when view disappears
+    func stopPolling() {
+        pollingTask?.cancel()
+        pollingTask = nil
+    }
+
     func updateTransferLimit(_ limit: Double) {
         config.transferLimit = limit
     }
-    
+
     func updateDailyWithdrawalLimit(_ limit: Double) {
         config.dailyWithdrawalLimit = limit
     }
-    
+
     // MARK: - Behavior Detection
-    
-    /// Call when a withdrawal is made
+
     func trackWithdrawal(amount: Double) {
         if amount > unusualWithdrawalThreshold {
             let event = BehaviorEvent(
@@ -206,10 +286,8 @@ final class SafetyModeController {
         }
         checkForRapidTransactions(amount: amount)
     }
-    
-    /// Call when a transfer is made
+
     func trackTransfer(to recipient: String, amount: Double) {
-        // Check for repeated transfers
         let recentTransfers = behaviorEvents.filter {
             $0.flag == .repeatedTransfer &&
             $0.timestamp.timeIntervalSinceNow > -repeatedTransferWindow
@@ -222,7 +300,7 @@ final class SafetyModeController {
             )
             addEvent(event)
         }
-        
+
         if amount > unusualWithdrawalThreshold {
             let event = BehaviorEvent(
                 flag: .largeUnusualPurchase,
@@ -231,23 +309,22 @@ final class SafetyModeController {
             )
             addEvent(event)
         }
-        
+
         checkForRapidTransactions(amount: amount)
     }
-    
-    /// Check if transaction exceeds safety mode limits
+
     func isTransferAllowed(amount: Double) -> Bool {
         guard config.isEnabled else { return true }
         return amount <= config.transferLimit
     }
-    
+
     func isWithdrawalAllowed(amount: Double) -> Bool {
         guard config.isEnabled else { return true }
         return amount <= config.dailyWithdrawalLimit
     }
-    
+
     // MARK: - Simulate Patterns (for demo)
-    
+
     func simulateUnusualBehavior() {
         let events: [BehaviorEvent] = [
             BehaviorEvent(
@@ -265,25 +342,25 @@ final class SafetyModeController {
                 detail: "Se iniciaron y cancelaron 5 operaciones en 10 minutos"
             )
         ]
-        
+
         for event in events {
             addEvent(event)
         }
         showSuggestionAlert = true
     }
-    
+
     // MARK: - Private Helpers
-    
+
     private func addEvent(_ event: BehaviorEvent) {
         behaviorEvents.append(event)
         saveEvents()
-        
+
         let recentFlags = recentBehaviorEvents(hours: 24)
         if recentFlags.count >= 2 && !config.isEnabled {
             showSuggestionAlert = true
         }
     }
-    
+
     private func checkForRapidTransactions(amount: Double) {
         let recent = behaviorEvents.filter {
             $0.timestamp.timeIntervalSinceNow > -rapidTransactionWindow
@@ -298,24 +375,24 @@ final class SafetyModeController {
             saveEvents()
         }
     }
-    
+
     private func recentBehaviorEvents(hours: Int) -> [BehaviorEvent] {
         let cutoff = Date().addingTimeInterval(-Double(hours) * 3600)
         return behaviorEvents.filter { $0.timestamp > cutoff }
     }
-    
+
     private func saveConfig() {
         if let data = try? JSONEncoder().encode(config) {
             UserDefaults.standard.set(data, forKey: "safetyModeConfig")
         }
     }
-    
+
     private func saveEvents() {
         if let data = try? JSONEncoder().encode(behaviorEvents) {
             UserDefaults.standard.set(data, forKey: "behaviorEvents")
         }
     }
-    
+
     func clearEvents() {
         behaviorEvents.removeAll()
         saveEvents()

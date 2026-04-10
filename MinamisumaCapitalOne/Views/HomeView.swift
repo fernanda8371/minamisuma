@@ -164,7 +164,16 @@ struct HomeView: View {
                 SafetyModeActivationView(safetyController: safetyController)
             }
             .onAppear {
+                safetyController.startPolling()
                 if safetyController.hasPendingCaregiverRequest {
+                    showPendingRequest = true
+                }
+            }
+            .onDisappear {
+                safetyController.stopPolling()
+            }
+            .onChange(of: safetyController.hasPendingCaregiverRequest) { _, hasPending in
+                if hasPending {
                     showPendingRequest = true
                 }
             }
