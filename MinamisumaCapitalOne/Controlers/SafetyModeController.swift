@@ -120,6 +120,31 @@ final class SafetyModeController {
         config.notifyTrustedContact = false
         config.activatedAt = nil
         activePermissionLevel = nil
+
+        // Mark the latest approved request as deactivated in Supabase
+        // so polling doesn't re-activate it
+        Task {
+            do {
+                let results: [DBCaregiverRequest] = try await SupabaseManager.client
+                    .from(dbTable)
+                    .select()
+                    .eq("status", value: "approved")
+                    .order("requested_at", ascending: false)
+                    .limit(1)
+                    .execute()
+                    .value
+
+                if let req = results.first {
+                    try await SupabaseManager.client
+                        .from(dbTable)
+                        .update(["status": "deactivated"])
+                        .eq("id", value: req.id.uuidString)
+                        .execute()
+                }
+            } catch {
+                print("Supabase deactivate error: \(error)")
+            }
+        }
     }
 
     // MARK: - Supabase Caregiver Request Flow
