@@ -35,6 +35,8 @@ struct MovimientosView: View {
     @AppStorage("letraGrande") private var letraGrande: Bool = false
 
     let movimientos: [Movimiento] = [
+        Movimiento(comercio: "SEMOVI CDMX", monto: 23.00, fecha: "10 Abr 2026", hora: "07:45", esDeposito: false,
+                   descripcion: "SEMOVI CDMX $23.00 es el Sistema de Movilidad de la Ciudad de México. Este cargo aparece cuando recargas tu tarjeta del metro o metrobús."),
         Movimiento(comercio: "Walmart Supercenter", monto: 1245.80, fecha: "9 Abr 2026", hora: "14:32", esDeposito: false,
                    descripcion: "Compra en Walmart Supercenter. Este cargo corresponde a una compra realizada en la tienda con tu tarjeta. Si no la reconoces, puedes reportarla."),
         Movimiento(comercio: "Deposito Nomina", monto: 15000.00, fecha: "8 Abr 2026", hora: "08:00", esDeposito: true,
@@ -58,7 +60,6 @@ struct MovimientosView: View {
     ]
 
     @State private var selectedMovimiento: Movimiento? = nil
-    @State private var showPopup = false
 
     private var fontScale: CGFloat { letraGrande ? 1.3 : 1.0 }
     private func fs(_ base: CGFloat) -> CGFloat { ceil(base * fontScale) }
@@ -82,10 +83,8 @@ struct MovimientosView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Mis movimientos")
         .navigationBarTitleDisplayMode(.large)
-        .sheet(isPresented: $showPopup) {
-            if let mov = selectedMovimiento {
-                MovimientoPopupView(movimiento: mov, isPresented: $showPopup, fontScale: fontScale)
-            }
+        .sheet(item: $selectedMovimiento) { mov in
+            MovimientoPopupView(movimiento: mov, fontScale: fontScale)
         }
     }
 
@@ -175,7 +174,6 @@ struct MovimientosView: View {
             ForEach(Array(movimientos.enumerated()), id: \.element.id) { index, mov in
                 MovimientoRow(movimiento: mov, fontScale: fontScale) {
                     selectedMovimiento = mov
-                    showPopup = true
                 }
                 if index < movimientos.count - 1 {
                     Divider().padding(.leading, 16)
@@ -277,8 +275,8 @@ struct MovimientoRow: View {
 struct MovimientoPopupView: View {
 
     let movimiento: Movimiento
-    @Binding var isPresented: Bool
     let fontScale: CGFloat
+    @Environment(\.dismiss) private var dismiss
 
     private func fs(_ base: CGFloat) -> CGFloat { ceil(base * fontScale) }
 
@@ -303,7 +301,7 @@ struct MovimientoPopupView: View {
 
                 Spacer()
 
-                Button(action: { isPresented = false }) {
+                Button(action: { dismiss() }) {
                     Text("Confirmar")
                         .font(.system(size: fs(17), weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
@@ -315,7 +313,7 @@ struct MovimientoPopupView: View {
                 .accessibilityLabel("Confirmar, entendido")
                 .accessibilityHint("Cierra esta explicación")
 
-                Button(action: { isPresented = false }) {
+                Button(action: { dismiss() }) {
                     Text("No reconozco este cobro")
                         .font(.system(size: fs(16), design: .rounded))
                         .foregroundColor(.textSecondary)
