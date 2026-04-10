@@ -34,7 +34,28 @@ struct MovimientosView: View {
 
     @AppStorage("letraGrande") private var letraGrande: Bool = false
 
-    let movimientos: [Movimiento] = []
+    let movimientos: [Movimiento] = [
+        Movimiento(comercio: "Walmart Supercenter", monto: 1245.80, fecha: "9 Abr 2026", hora: "14:32", esDeposito: false,
+                   descripcion: "Compra en Walmart Supercenter. Este cargo corresponde a una compra realizada en la tienda con tu tarjeta. Si no la reconoces, puedes reportarla."),
+        Movimiento(comercio: "Deposito Nomina", monto: 15000.00, fecha: "8 Abr 2026", hora: "08:00", esDeposito: true,
+                   descripcion: "Deposito de nomina quincenal. Este ingreso corresponde al pago de tu empresa depositado automaticamente a tu cuenta."),
+        Movimiento(comercio: "CFE Luz", monto: 487.00, fecha: "7 Abr 2026", hora: "10:15", esDeposito: false,
+                   descripcion: "Pago del recibo de luz (CFE). Se realizo el pago de tu servicio de energia electrica correspondiente al bimestre actual."),
+        Movimiento(comercio: "Farmacia Guadalajara", monto: 362.50, fecha: "6 Abr 2026", hora: "17:45", esDeposito: false,
+                   descripcion: "Compra en Farmacia Guadalajara. Este cargo es por medicamentos o productos adquiridos en la farmacia."),
+        Movimiento(comercio: "Transferencia a Maria", monto: 2000.00, fecha: "5 Abr 2026", hora: "12:00", esDeposito: false,
+                   descripcion: "Transferencia enviada a Maria Garcia. Enviaste esta cantidad desde tu cuenta a un contacto de confianza."),
+        Movimiento(comercio: "Pension IMSS", monto: 8500.00, fecha: "1 Abr 2026", hora: "06:00", esDeposito: true,
+                   descripcion: "Deposito de pension del IMSS. Este ingreso corresponde al pago mensual de tu pension por parte del seguro social."),
+        Movimiento(comercio: "Soriana Super", monto: 876.30, fecha: "31 Mar 2026", hora: "11:20", esDeposito: false,
+                   descripcion: "Compra en Soriana. Este cargo corresponde a compras de despensa realizadas en la tienda."),
+        Movimiento(comercio: "Telmex Internet", monto: 599.00, fecha: "30 Mar 2026", hora: "09:00", esDeposito: false,
+                   descripcion: "Pago del servicio de internet y telefono Telmex. Se cobro automaticamente el servicio del mes."),
+        Movimiento(comercio: "Retiro cajero", monto: 3000.00, fecha: "28 Mar 2026", hora: "16:10", esDeposito: false,
+                   descripcion: "Retiro de efectivo en cajero automatico. Se retiraron $3,000 pesos en un cajero cercano a tu domicilio."),
+        Movimiento(comercio: "Deposito familiar", monto: 5000.00, fecha: "25 Mar 2026", hora: "13:30", esDeposito: true,
+                   descripcion: "Deposito recibido de un familiar. Alguien de tu familia realizo una transferencia a tu cuenta.")
+    ]
 
     @State private var selectedMovimiento: Movimiento? = nil
     @State private var showPopup = false
