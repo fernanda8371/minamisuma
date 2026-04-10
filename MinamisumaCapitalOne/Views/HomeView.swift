@@ -52,7 +52,7 @@ struct HomeView: View {
                             title: "Retirar",
                             icon: "banknote.fill",
                             destination: AnyView(
-                                PlaceholderView(title: "Retirar")
+                                RetirarView()
                             )
                         )
 
@@ -60,7 +60,7 @@ struct HomeView: View {
                             title: "Enviar dinero",
                             icon: "arrow.right.circle.fill",
                             destination: AnyView(
-                                PlaceholderView(title: "Enviar dinero")
+                                TransferenciaView()
                             )
                         )
 
@@ -68,7 +68,7 @@ struct HomeView: View {
                             title: "Movimientos",
                             icon: "list.bullet.rectangle.fill",
                             destination: AnyView(
-                                PlaceholderView(title: "Mis movimientos")
+                                MovimientosView()
                             )
                         )
 
@@ -84,7 +84,7 @@ struct HomeView: View {
                             title: "Ayuda",
                             icon: "questionmark.circle.fill",
                             destination: AnyView(
-                                PlaceholderView(title: "Ayuda")
+                                AyudaView()
                             )
                         )
                     }
@@ -264,9 +264,7 @@ struct HomeView: View {
 
 
             NavigationLink(
-                destination: PlaceholderView(
-                    title: "Configurar perfil"
-                )
+                destination: ProfileView()
             ) {
 
                 HStack(spacing: 6) {
