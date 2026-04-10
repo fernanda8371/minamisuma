@@ -8,8 +8,9 @@
 import Foundation
 import SwiftData
 import Observation
+import Supabase
 
-// MARK: - Trusted Contact Controller (MVC Controller Layer)
+// MARK: - Trusted Contact Controller (Supabase + Local AlertEvents)
 
 @Observable
 final class TrustedContactController {
@@ -21,25 +22,35 @@ final class TrustedContactController {
     var isLoading: Bool = false
     var errorMessage: String?
     
+    private let table = "trusted_contacts"
+    
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
-        fetchContacts()
         fetchAlertHistory()
+        Task { await fetchContacts() }
     }
     
-    // MARK: - CRUD Operations
+    // MARK: - Supabase CRUD Operations
     
-    func fetchContacts() {
-        let descriptor = FetchDescriptor<TrustedContact>(
-            sortBy: [SortDescriptor(\.dateAdded, order: .reverse)]
-        )
+    @MainActor
+    func fetchContacts() async {
+        isLoading = true
         do {
-            contacts = try modelContext.fetch(descriptor)
+            let result: [TrustedContact] = try await SupabaseManager.client
+                .from(table)
+                .select()
+                .order("date_added", ascending: false)
+                .execute()
+                .value
+            contacts = result
         } catch {
             errorMessage = "Could not load your trusted contacts. Please try again."
+            print("Supabase fetch error: \(error)")
         }
+        isLoading = false
     }
     
+    @MainActor
     func addContact(
         name: String,
         phoneNumber: String,
@@ -51,7 +62,7 @@ final class TrustedContactController {
         alertOnUnusualActivity: Bool = false,
         sendBillReminders: Bool = false
     ) {
-        let contact = TrustedContact(
+        var contact = TrustedContact(
             name: name,
             phoneNumber: phoneNumber,
             email: email,
@@ -77,54 +88,110 @@ final class TrustedContactController {
             break
         }
         
-        modelContext.insert(contact)
-        saveContext()
-        fetchContacts()
-    }
-    
-    func removeContact(_ contact: TrustedContact) {
-        modelContext.delete(contact)
-        saveContext()
-        fetchContacts()
-    }
-    
-    func toggleContactActive(_ contact: TrustedContact) {
-        contact.isActive.toggle()
-        saveContext()
-        fetchContacts()
-    }
-    
-    func updatePermission(for contact: TrustedContact, to newLevel: PermissionLevel) {
-        contact.permissionLevel = newLevel
-        
-        contact.alertOnLargeTransactions = false
-        contact.alertOnUnusualActivity = false
-        contact.sendBillReminders = false
-        
-        switch newLevel {
-        case .viewOnly:
-            break
-        case .alertsOnly:
-            contact.alertOnUnusualActivity = true
-            contact.alertOnLargeTransactions = true
-        case .billReminders:
-            contact.sendBillReminders = true
-        case .fullCoPilot:
-            contact.alertOnLargeTransactions = true
-            contact.alertOnUnusualActivity = true
-            contact.sendBillReminders = true
+        Task {
+            do {
+                try await SupabaseManager.client
+                    .from(table)
+                    .insert(contact)
+                    .execute()
+                await fetchContacts()
+            } catch {
+                errorMessage = "Could not add contact. Please try again."
+                print("Supabase insert error: \(error)")
+            }
         }
-        
-        saveContext()
-        fetchContacts()
     }
     
+    @MainActor
+    func removeContact(_ contact: TrustedContact) {
+        Task {
+            do {
+                try await SupabaseManager.client
+                    .from(table)
+                    .delete()
+                    .eq("id", value: contact.id.uuidString)
+                    .execute()
+                await fetchContacts()
+            } catch {
+                errorMessage = "Could not remove contact. Please try again."
+                print("Supabase delete error: \(error)")
+            }
+        }
+    }
+    
+    @MainActor
+    func toggleContactActive(_ contact: TrustedContact) {
+        let newValue = !contact.isActive
+        Task {
+            do {
+                try await SupabaseManager.client
+                    .from(table)
+                    .update(["is_active": newValue])
+                    .eq("id", value: contact.id.uuidString)
+                    .execute()
+                await fetchContacts()
+            } catch {
+                errorMessage = "Could not update contact. Please try again."
+                print("Supabase update error: \(error)")
+            }
+        }
+    }
+    
+    @MainActor
+    func updatePermission(for contact: TrustedContact, to newLevel: PermissionLevel) {
+        Task {
+            do {
+                var updates: [String: AnyJSON] = [
+                    "permission_level": try AnyJSON(newLevel.rawValue),
+                    "alert_on_large_transactions": try AnyJSON(false),
+                    "alert_on_unusual_activity": try AnyJSON(false),
+                    "send_bill_reminders": try AnyJSON(false)
+                ]
+
+                switch newLevel {
+                case .viewOnly:
+                    break
+                case .alertsOnly:
+                    updates["alert_on_unusual_activity"] = try AnyJSON(true)
+                    updates["alert_on_large_transactions"] = try AnyJSON(true)
+                case .billReminders:
+                    updates["send_bill_reminders"] = try AnyJSON(true)
+                case .fullCoPilot:
+                    updates["alert_on_large_transactions"] = try AnyJSON(true)
+                    updates["alert_on_unusual_activity"] = try AnyJSON(true)
+                    updates["send_bill_reminders"] = try AnyJSON(true)
+                }
+                try await SupabaseManager.client
+                    .from(table)
+                    .update(updates)
+                    .eq("id", value: contact.id.uuidString)
+                    .execute()
+                await fetchContacts()
+            } catch {
+                errorMessage = "Could not update permission. Please try again."
+                print("Supabase update error: \(error)")
+            }
+        }
+    }
+    
+    @MainActor
     func updateThreshold(for contact: TrustedContact, amount: Double) {
-        contact.largeTransactionThreshold = amount
-        saveContext()
+        Task {
+            do {
+                try await SupabaseManager.client
+                    .from(table)
+                    .update(["large_transaction_threshold": amount])
+                    .eq("id", value: contact.id.uuidString)
+                    .execute()
+                await fetchContacts()
+            } catch {
+                errorMessage = "Could not update threshold."
+                print("Supabase update error: \(error)")
+            }
+        }
     }
     
-    // MARK: - Alert History
+    // MARK: - Alert History (still local SwiftData)
     
     func fetchAlertHistory() {
         let descriptor = FetchDescriptor<AlertEvent>(

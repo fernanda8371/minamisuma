@@ -15,11 +15,11 @@ struct ContentView: View {
         NavigationStack {
             HomeView()
         }
-        .modelContainer(for: [Item.self, TrustedContact.self, AlertEvent.self])
+        .modelContainer(for: [Item.self, AlertEvent.self])
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: [Item.self, TrustedContact.self, AlertEvent.self], inMemory: true)
+        .modelContainer(for: [Item.self, AlertEvent.self], inMemory: true)
 }
