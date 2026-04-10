@@ -2,23 +2,38 @@
 //  TransferenciaView.swift
 //  MinamisumaCapitalOne
 //
-//  Pantalla de envío de dinero / transferencia
+//  Transferencia con detección automática CLABE/tarjeta
+//  + accesibilidad completa + letra adaptable
 //
 
 import SwiftUI
 
-// MARK: - Tipo de Transacción
+// MARK: - Tipo de cuenta detectado
 
-enum TipoTransaccion: String, CaseIterable {
-    case numeroTarjeta = "Número\nde tarjeta"
-    case cuenta        = "Cuenta"
-    case cheque        = "Cheque"
+private enum TipoCuentaDetectado: Equatable {
+    case clabe       // 18 dígitos
+    case tarjeta     // 16 dígitos
+    case incompleto
 
-    var icon: String {
+    var etiqueta: String {
         switch self {
-        case .numeroTarjeta: return "creditcard.fill"
-        case .cuenta:        return "person.fill"
-        case .cheque:        return "building.columns.fill"
+        case .clabe:      return "CLABE interbancaria"
+        case .tarjeta:    return "Número de tarjeta"
+        case .incompleto: return ""
+        }
+    }
+    var icono: String {
+        switch self {
+        case .clabe:      return "building.columns.fill"
+        case .tarjeta:    return "creditcard.fill"
+        case .incompleto: return ""
+        }
+    }
+    var color: Color {
+        switch self {
+        case .clabe:      return .brandTeal
+        case .tarjeta:    return .brandBlue
+        case .incompleto: return .clear
         }
     }
 }
@@ -36,13 +51,39 @@ struct TransferenciaView: View {
         network: "visa"
     )
 
-    @State private var tipoSeleccionado: TipoTransaccion = .numeroTarjeta
+    @AppStorage("letraGrande") private var letraGrande: Bool = false
+
     @State private var nombreBeneficiario: String = ""
     @State private var numeroCuenta: String = ""
     @State private var monto: String = ""
     @State private var confirmarMonto: String = ""
     @State private var guardarContacto: Bool = false
     @State private var showConfirmacion: Bool = false
+
+    private func fs(_ base: CGFloat) -> CGFloat { letraGrande ? ceil(base * 1.3) : base }
+
+    // MARK: - Detección automática
+
+    private var tipoCuenta: TipoCuentaDetectado {
+        let n = numeroCuenta.filter(\.isNumber).count
+        switch n {
+        case 18: return .clabe
+        case 16: return .tarjeta
+        default: return .incompleto
+        }
+    }
+
+    private var digitosIngresados: Int { numeroCuenta.filter(\.isNumber).count }
+
+    private var montoCoincide: Bool { !monto.isEmpty && monto == confirmarMonto }
+    private var montoNoCoincide: Bool { !confirmarMonto.isEmpty && monto != confirmarMonto }
+
+    private var formularioValido: Bool {
+        tipoCuenta != .incompleto &&
+        !nombreBeneficiario.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !monto.isEmpty &&
+        montoCoincide
+    }
 
     var montoEnLetras: String {
         guard let valor = Double(monto.replacingOccurrences(of: "$", with: "")),
@@ -54,15 +95,23 @@ struct TransferenciaView: View {
         ScrollView {
             VStack(spacing: 20) {
                 cardSelectorSection
-                tipoTransaccionSection
                 beneficiarioSection
-                formSection
+                cuentaDestinoSection
+                montoSection
                 guardarContactoRow
 
-                SeniorPrimaryButton("Confirmar transferencia", color: .black) {
-                    showConfirmacion = true
+                SeniorPrimaryButton(
+                    "Confirmar transferencia",
+                    color: formularioValido ? .black : Color(.systemGray3)
+                ) {
+                    if formularioValido { showConfirmacion = true }
                 }
+                .disabled(!formularioValido)
                 .padding(.top, 4)
+                .accessibilityLabel("Confirmar transferencia")
+                .accessibilityHint(formularioValido
+                    ? "Toca dos veces para enviar la transferencia"
+                    : "Completa todos los campos para activar este botón")
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -85,10 +134,11 @@ struct TransferenciaView: View {
             HStack {
                 Image(systemName: "creditcard")
                     .foregroundColor(.brandBlue)
-                    .font(.system(size: 18))
+                    .font(.system(size: fs(18)))
+                    .accessibilityHidden(true)
 
                 Text("VISA ****  ****  ****  \(card.lastFour)")
-                    .font(.seniorBody)
+                    .font(.system(size: fs(17), design: .rounded))
                     .foregroundColor(.textPrimary)
 
                 Spacer()
@@ -96,161 +146,257 @@ struct TransferenciaView: View {
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.textSecondary)
+                    .accessibilityHidden(true)
             }
             .padding(16)
+            .frame(minHeight: 52)
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color(.systemGray4), lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Tarjeta VISA, terminación \(card.lastFour)")
+            .accessibilityHint("Toca para cambiar de tarjeta")
 
             HStack(spacing: 6) {
                 Text("Balance disponible:")
-                    .font(.seniorCaption)
+                    .font(.system(size: fs(14), design: .rounded))
                     .foregroundColor(.textSecondary)
                 Text(balanceFormatted)
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: fs(15), weight: .semibold, design: .rounded))
                     .foregroundColor(.textPrimary)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Balance disponible: \(balanceFormatted)")
         }
-    }
-
-    // MARK: - Tipo de Transacción
-
-    private var tipoTransaccionSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Tipo de transacción")
-                .font(.seniorCaption)
-                .foregroundColor(.textSecondary)
-
-            HStack(spacing: 10) {
-                ForEach(TipoTransaccion.allCases, id: \.self) { tipo in
-                    tipoButton(tipo)
-                }
-            }
-        }
-    }
-
-    private func tipoButton(_ tipo: TipoTransaccion) -> some View {
-        let isSelected = tipoSeleccionado == tipo
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                tipoSeleccionado = tipo
-            }
-        } label: {
-            VStack(spacing: 8) {
-                Image(systemName: tipo.icon)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(isSelected ? .white : .textSecondary)
-
-                Text(tipo.rawValue)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isSelected ? .white : .textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: 80)
-            .background(isSelected ? Color.black : Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(isSelected ? Color.clear : Color(.systemGray4), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
     }
 
     // MARK: - Beneficiario
 
     private var beneficiarioSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Elige beneficiario")
-                    .font(.seniorCaption)
+                Text("¿A quién le envías?")
+                    .font(.system(size: fs(14), design: .rounded))
                     .foregroundColor(.textSecondary)
-
                 Spacer()
-
-                Button("Buscar otro") {}
-                    .font(.system(size: 14, weight: .semibold))
+                Button("De mis contactos") {}
+                    .font(.system(size: fs(14), weight: .semibold, design: .rounded))
                     .foregroundColor(.brandBlue)
+                    .accessibilityLabel("Buscar en mis contactos")
+                    .accessibilityHint("Abre tu lista de contactos guardados")
             }
 
-            if !nombreBeneficiario.isEmpty {
+            TextField("Nombre del destinatario", text: $nombreBeneficiario)
+                .font(.system(size: fs(17), design: .rounded))
+                .padding(16)
+                .frame(minHeight: 52)
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
+                .accessibilityLabel("Nombre del destinatario")
+                .accessibilityHint("Ingresa el nombre completo de la persona a quien le envías")
+
+            if !nombreBeneficiario.trimmingCharacters(in: .whitespaces).isEmpty {
                 Text(nombreBeneficiario)
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: fs(24), weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
-            } else {
-                Text("Sin beneficiario")
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(Color(.systemGray3))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .animation(.easeInOut(duration: 0.2), value: nombreBeneficiario)
+                    .accessibilityHidden(true)
             }
         }
     }
 
-    // MARK: - Form Fields
+    // MARK: - Cuenta Destino
 
-    private var formSection: some View {
-        VStack(spacing: 12) {
-            transferField(placeholder: "Nombre del destinatario", text: $nombreBeneficiario, keyboardType: .default)
-            transferField(placeholder: "Número de cuenta o tarjeta", text: $numeroCuenta, keyboardType: .numberPad)
-            transferField(placeholder: "$0.00", text: $monto, keyboardType: .decimalPad)
-            transferField(placeholder: "Confirmar monto", text: $confirmarMonto, keyboardType: .decimalPad)
+    private var cuentaDestinoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("CLABE o número de tarjeta")
+                .font(.system(size: fs(14), design: .rounded))
+                .foregroundColor(.textSecondary)
+                .accessibilityHidden(true)
 
-            if !montoEnLetras.isEmpty {
-                HStack {
-                    Text(montoEnLetras)
-                        .font(.seniorCaption)
-                        .foregroundColor(.textSecondary)
-                        .italic()
-                    Spacer()
+            TextField("16 dígitos (tarjeta) · 18 dígitos (CLABE)", text: $numeroCuenta)
+                .font(.system(size: fs(16), weight: .medium, design: .monospaced))
+                .keyboardType(.numberPad)
+                .padding(16)
+                .frame(minHeight: 52)
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(
+                            tipoCuenta == .incompleto ? Color(.systemGray4) : tipoCuenta.color,
+                            lineWidth: tipoCuenta == .incompleto ? 1 : 1.5
+                        )
+                )
+                .onChange(of: numeroCuenta) { _, nuevo in
+                    let soloNum = nuevo.filter(\.isNumber)
+                    if soloNum.count > 18 { numeroCuenta = String(soloNum.prefix(18)) }
                 }
-                .padding(.horizontal, 4)
-                .transition(.opacity)
+                .accessibilityLabel("Número de cuenta o CLABE")
+                .accessibilityHint("Ingresa 16 dígitos para tarjeta o 18 dígitos para CLABE interbancaria")
+                .accessibilityValue(
+                    tipoCuenta == .incompleto
+                        ? "\(digitosIngresados) dígitos ingresados"
+                        : "Detectado como \(tipoCuenta.etiqueta)"
+                )
+
+            // Badge de detección / contador
+            if tipoCuenta != .incompleto {
+                HStack(spacing: 8) {
+                    Image(systemName: tipoCuenta.icono)
+                        .font(.system(size: fs(13), weight: .semibold))
+                        .accessibilityHidden(true)
+                    Text(tipoCuenta.etiqueta)
+                        .font(.system(size: fs(13), weight: .semibold, design: .rounded))
+                }
+                .foregroundColor(tipoCuenta.color)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(tipoCuenta.color.opacity(0.10))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                .animation(.easeInOut(duration: 0.2), value: tipoCuenta.etiqueta)
+                .accessibilityLabel("Tipo detectado: \(tipoCuenta.etiqueta)")
+            } else if digitosIngresados > 0 {
+                Text("\(digitosIngresados) / 16 tarjeta · 18 CLABE")
+                    .font(.system(size: fs(13), design: .rounded))
+                    .foregroundColor(Color(.systemGray3))
+                    .transition(.opacity)
+                    .accessibilityLabel("\(digitosIngresados) dígitos ingresados. Se necesitan 16 para tarjeta o 18 para CLABE.")
             }
         }
     }
 
-    private func transferField(placeholder: String, text: Binding<String>, keyboardType: UIKeyboardType) -> some View {
-        TextField(placeholder, text: text)
-            .font(.seniorBody)
-            .keyboardType(keyboardType)
+    // MARK: - Monto
+
+    private var montoSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Monto a transferir")
+                .font(.system(size: fs(14), design: .rounded))
+                .foregroundColor(.textSecondary)
+                .accessibilityHidden(true)
+
+            // Monto
+            HStack {
+                Text("$")
+                    .font(.system(size: fs(20), weight: .semibold, design: .rounded))
+                    .foregroundColor(.textSecondary)
+                    .accessibilityHidden(true)
+                TextField("0.00", text: $monto)
+                    .font(.system(size: fs(20), weight: .semibold, design: .rounded))
+                    .keyboardType(.decimalPad)
+                    .foregroundColor(.textPrimary)
+            }
             .padding(16)
+            .frame(minHeight: 52)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
+            .accessibilityLabel("Monto a transferir")
+            .accessibilityHint("Ingresa la cantidad en pesos")
+            .accessibilityValue(monto.isEmpty ? "Vacío" : "\(monto) pesos")
+
+            // Confirmar monto
+            HStack {
+                Text("$")
+                    .font(.system(size: fs(20), weight: .semibold, design: .rounded))
+                    .foregroundColor(.textSecondary)
+                    .accessibilityHidden(true)
+                TextField("Confirmar monto", text: $confirmarMonto)
+                    .font(.system(size: fs(20), weight: .semibold, design: .rounded))
+                    .keyboardType(.decimalPad)
+                    .foregroundColor(
+                        confirmarMonto.isEmpty ? .textPrimary :
+                        (montoCoincide ? .statusGreen : .statusRed)
+                    )
+            }
+            .padding(16)
+            .frame(minHeight: 52)
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color(.systemGray4), lineWidth: 1)
+                    .stroke(
+                        confirmarMonto.isEmpty ? Color(.systemGray4) :
+                        (montoCoincide ? Color.statusGreen : Color.statusRed),
+                        lineWidth: confirmarMonto.isEmpty ? 1 : 1.5
+                    )
             )
+            .accessibilityLabel("Confirmar monto")
+            .accessibilityHint("Vuelve a ingresar la misma cantidad para confirmar")
+            .accessibilityValue(
+                confirmarMonto.isEmpty ? "Vacío" :
+                (montoCoincide ? "Los montos coinciden" : "Los montos no coinciden")
+            )
+
+            // Retroalimentación de coincidencia
+            if montoCoincide {
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.statusGreen)
+                        .accessibilityHidden(true)
+                    Text("Los montos coinciden")
+                        .font(.system(size: fs(13), design: .rounded))
+                        .foregroundColor(.statusGreen)
+                }
+                .transition(.opacity)
+            } else if montoNoCoincide {
+                HStack(spacing: 6) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.statusRed)
+                        .accessibilityHidden(true)
+                    Text("Los montos no coinciden")
+                        .font(.system(size: fs(13), design: .rounded))
+                        .foregroundColor(.statusRed)
+                }
+                .transition(.opacity)
+            }
+
+            // Monto en letras
+            if !montoEnLetras.isEmpty {
+                Text(montoEnLetras)
+                    .font(.system(size: fs(13), design: .rounded))
+                    .foregroundColor(.textSecondary)
+                    .italic()
+                    .padding(.leading, 4)
+                    .transition(.opacity)
+                    .animation(.easeInOut, value: montoEnLetras)
+                    .accessibilityLabel(montoEnLetras)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: montoCoincide)
     }
 
     // MARK: - Guardar Contacto
 
     private var guardarContactoRow: some View {
-        HStack(spacing: 12) {
-            Image(systemName: guardarContacto ? "checkmark.square.fill" : "square")
-                .font(.system(size: 22))
-                .foregroundColor(guardarContacto ? .brandBlue : Color(.systemGray3))
-                .onTapGesture { guardarContacto.toggle() }
+        Button(action: { guardarContacto.toggle() }) {
+            HStack(spacing: 12) {
+                Image(systemName: guardarContacto ? "checkmark.square.fill" : "square")
+                    .font(.system(size: fs(22)))
+                    .foregroundColor(guardarContacto ? .brandBlue : Color(.systemGray3))
 
-            Text("Guardar contacto")
-                .font(.seniorBody)
-                .foregroundColor(.textPrimary)
-                .onTapGesture { guardarContacto.toggle() }
+                Text("Guardar contacto")
+                    .font(.system(size: fs(17), design: .rounded))
+                    .foregroundColor(.textPrimary)
 
-            Spacer()
+                Spacer()
+            }
         }
+        .buttonStyle(.plain)
+        .frame(minHeight: 44)
+        .accessibilityLabel("Guardar contacto")
+        .accessibilityValue(guardarContacto ? "Activado" : "Desactivado")
+        .accessibilityHint("Activa para guardar a esta persona en tus contactos para futuras transferencias")
     }
 
     // MARK: - Helpers
 
     private var balanceFormatted: String {
         let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.currencySymbol = "$"
+        f.numberStyle = .currency; f.currencySymbol = "$"
         f.locale = Locale(identifier: "en_US")
         return f.string(from: NSNumber(value: card.balance)) ?? "$0.00"
     }
@@ -274,24 +420,19 @@ struct TransferenciaView: View {
                 return u == 0 ? decenas[d] : "\(decenas[d]) y \(unidades[u])"
             }
             let c = n / 100, resto = n % 100
-            if resto == 0 { return centenas[c] }
-            return "\(centenas[c]) \(menorMil(resto))"
+            return resto == 0 ? centenas[c] : "\(centenas[c]) \(menorMil(resto))"
         }
 
         var resultado = ""
         if entero >= 1000 {
             let miles = entero / 1000
-            resultado += miles == 1 ? "mil" : "\(menorMil(miles)) mil"
+            resultado = miles == 1 ? "mil" : "\(menorMil(miles)) mil"
             let resto = entero % 1000
             if resto > 0 { resultado += " \(menorMil(resto))" }
         } else {
             resultado = menorMil(entero)
         }
-
-        if centavos > 0 {
-            resultado += " con \(centavos)/100"
-        }
-
+        if centavos > 0 { resultado += " con \(centavos)/100" }
         return resultado.isEmpty ? "cero" : resultado.capitalized
     }
 }
@@ -299,7 +440,5 @@ struct TransferenciaView: View {
 // MARK: - Preview
 
 #Preview {
-    NavigationStack {
-        TransferenciaView()
-    }
+    NavigationStack { TransferenciaView() }
 }
