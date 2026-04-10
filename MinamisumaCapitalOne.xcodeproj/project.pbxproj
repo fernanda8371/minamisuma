@@ -6,7 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		9C4CECA82F89842D00F6B1B3 /* ScamFilterExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9C4CECA12F89842D00F6B1B3 /* ScamFilterExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
+		9C4CECA62F89842D00F6B1B3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9CE17E022F8961BE00D8CC7A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9C4CECA02F89842D00F6B1B3;
+			remoteInfo = ScamFilterExtension;
+		};
 		9CE17E1A2F8961C100D8CC7A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 9CE17E022F8961BE00D8CC7A /* Project object */;
@@ -23,15 +34,67 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		9C4CECAD2F89842D00F6B1B3 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				9C4CECA82F89842D00F6B1B3 /* ScamFilterExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		9C4CECA12F89842D00F6B1B3 /* ScamFilterExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ScamFilterExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CE17E0A2F8961BE00D8CC7A /* MinamisumaCapitalOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MinamisumaCapitalOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CE17E192F8961C100D8CC7A /* MinamisumaCapitalOneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MinamisumaCapitalOneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CE17E232F8961C100D8CC7A /* MinamisumaCapitalOneUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MinamisumaCapitalOneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9C4CECA92F89842D00F6B1B3 /* Exceptions for "ScamFilterExtension" folder in "ScamFilterExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9C4CECA02F89842D00F6B1B3 /* ScamFilterExtension */;
+		};
+		9C4CECBD2F89893C00F6B1B3 /* Exceptions for "ScamFilterExtension" folder in "MinamisumaCapitalOne" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ScamMessageEntry.swift,
+				SharedScamStore.swift,
+			);
+			target = 9CE17E092F8961BE00D8CC7A /* MinamisumaCapitalOne */;
+		};
+		9C4CECC32F898EF200F6B1B3 /* Exceptions for "MinamisumaCapitalOne" folder in "ScamFilterExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Config/SupabaseConfig.swift,
+			);
+			target = 9C4CECA02F89842D00F6B1B3 /* ScamFilterExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		9C4CECA22F89842D00F6B1B3 /* ScamFilterExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				9C4CECBD2F89893C00F6B1B3 /* Exceptions for "ScamFilterExtension" folder in "MinamisumaCapitalOne" target */,
+				9C4CECA92F89842D00F6B1B3 /* Exceptions for "ScamFilterExtension" folder in "ScamFilterExtension" target */,
+			);
+			path = ScamFilterExtension;
+			sourceTree = "<group>";
+		};
 		9CE17E0C2F8961BE00D8CC7A /* MinamisumaCapitalOne */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				9C4CECC32F898EF200F6B1B3 /* Exceptions for "MinamisumaCapitalOne" folder in "ScamFilterExtension" target */,
+			);
 			path = MinamisumaCapitalOne;
 			sourceTree = "<group>";
 		};
@@ -48,6 +111,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		9C4CEC9E2F89842D00F6B1B3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9CE17E072F8961BE00D8CC7A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -78,6 +148,7 @@
 				9CE17E0C2F8961BE00D8CC7A /* MinamisumaCapitalOne */,
 				9CE17E1C2F8961C100D8CC7A /* MinamisumaCapitalOneTests */,
 				9CE17E262F8961C100D8CC7A /* MinamisumaCapitalOneUITests */,
+				9C4CECA22F89842D00F6B1B3 /* ScamFilterExtension */,
 				9CE17E0B2F8961BE00D8CC7A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,6 +159,7 @@
 				9CE17E0A2F8961BE00D8CC7A /* MinamisumaCapitalOne.app */,
 				9CE17E192F8961C100D8CC7A /* MinamisumaCapitalOneTests.xctest */,
 				9CE17E232F8961C100D8CC7A /* MinamisumaCapitalOneUITests.xctest */,
+				9C4CECA12F89842D00F6B1B3 /* ScamFilterExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,6 +167,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		9C4CECA02F89842D00F6B1B3 /* ScamFilterExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9C4CECAA2F89842D00F6B1B3 /* Build configuration list for PBXNativeTarget "ScamFilterExtension" */;
+			buildPhases = (
+				9C4CECC12F898E7E00F6B1B3 /* ShellScript */,
+				9C4CEC9D2F89842D00F6B1B3 /* Sources */,
+				9C4CEC9E2F89842D00F6B1B3 /* Frameworks */,
+				9C4CEC9F2F89842D00F6B1B3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				9C4CECA22F89842D00F6B1B3 /* ScamFilterExtension */,
+			);
+			name = ScamFilterExtension;
+			packageProductDependencies = (
+			);
+			productName = ScamFilterExtension;
+			productReference = 9C4CECA12F89842D00F6B1B3 /* ScamFilterExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		9CE17E092F8961BE00D8CC7A /* MinamisumaCapitalOne */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9CE17E2D2F8961C100D8CC7A /* Build configuration list for PBXNativeTarget "MinamisumaCapitalOne" */;
@@ -102,10 +197,12 @@
 				9CE17E062F8961BE00D8CC7A /* Sources */,
 				9CE17E072F8961BE00D8CC7A /* Frameworks */,
 				9CE17E082F8961BE00D8CC7A /* Resources */,
+				9C4CECAD2F89842D00F6B1B3 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				9C4CECA72F89842D00F6B1B3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				9CE17E0C2F8961BE00D8CC7A /* MinamisumaCapitalOne */,
@@ -173,6 +270,9 @@
 				LastSwiftUpdateCheck = 2630;
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
+					9C4CECA02F89842D00F6B1B3 = {
+						CreatedOnToolsVersion = 26.3;
+					};
 					9CE17E092F8961BE00D8CC7A = {
 						CreatedOnToolsVersion = 26.3;
 					};
@@ -203,11 +303,19 @@
 				9CE17E092F8961BE00D8CC7A /* MinamisumaCapitalOne */,
 				9CE17E182F8961C100D8CC7A /* MinamisumaCapitalOneTests */,
 				9CE17E222F8961C100D8CC7A /* MinamisumaCapitalOneUITests */,
+				9C4CECA02F89842D00F6B1B3 /* ScamFilterExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		9C4CEC9F2F89842D00F6B1B3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9CE17E082F8961BE00D8CC7A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -231,7 +339,37 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		9C4CECC12F898E7E00F6B1B3 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/scripts/generate_config.sh",
+				"$(SRCROOT)/.env",
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/MinamisumaCapitalOne/Config/SupabaseConfig.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${SRCROOT}/scripts/generate_config.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
+		9C4CEC9D2F89842D00F6B1B3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9CE17E062F8961BE00D8CC7A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -256,6 +394,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		9C4CECA72F89842D00F6B1B3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9C4CECA02F89842D00F6B1B3 /* ScamFilterExtension */;
+			targetProxy = 9C4CECA62F89842D00F6B1B3 /* PBXContainerItemProxy */;
+		};
 		9CE17E1B2F8961C100D8CC7A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 9CE17E092F8961BE00D8CC7A /* MinamisumaCapitalOne */;
@@ -269,6 +412,64 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		9C4CECAB2F89842D00F6B1B3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ScamFilterExtension/ScamFilterExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RJ2GKJ5SCW;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ScamFilterExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScamFilterExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = luisgarcia.MinamisumaCapitalOne.ScamFilterExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9C4CECAC2F89842D00F6B1B3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ScamFilterExtension/ScamFilterExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RJ2GKJ5SCW;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ScamFilterExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ScamFilterExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = luisgarcia.MinamisumaCapitalOne.ScamFilterExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		9CE17E2B2F8961C100D8CC7A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -541,6 +742,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		9C4CECAA2F89842D00F6B1B3 /* Build configuration list for PBXNativeTarget "ScamFilterExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9C4CECAB2F89842D00F6B1B3 /* Debug */,
+				9C4CECAC2F89842D00F6B1B3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		9CE17E052F8961BE00D8CC7A /* Build configuration list for PBXProject "MinamisumaCapitalOne" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
