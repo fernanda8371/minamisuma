@@ -145,28 +145,69 @@ final class SafetyModeController {
         }
     }
 
-    /// Fetch the latest pending request from Supabase
+    /// Fetch the latest request from Supabase (pending, approved, or denied)
     @MainActor
     func fetchPendingRequest() async {
         do {
+            // Fetch the most recent request regardless of status
             let results: [DBCaregiverRequest] = try await SupabaseManager.client
                 .from(dbTable)
                 .select()
-                .eq("status", value: "pending")
                 .order("requested_at", ascending: false)
                 .limit(1)
                 .execute()
                 .value
 
-            if let dbReq = results.first, let local = dbReq.toLocal() {
-                self.pendingRequest = local
-                self.pendingDBRequestId = dbReq.id
-            } else {
+            guard let dbReq = results.first else {
                 self.pendingRequest = nil
                 self.pendingDBRequestId = nil
+                return
+            }
+
+            switch dbReq.status {
+            case "pending":
+                if let local = dbReq.toLocal() {
+                    self.pendingRequest = local
+                    self.pendingDBRequestId = dbReq.id
+                }
+            case "approved":
+                // Client approved — activate safety mode on caregiver side too
+                if !self.isActive || self.pendingDBRequestId == dbReq.id {
+                    if let level = CaregiverPermissionLevel(rawValue: dbReq.permissionLevel) {
+                        self.activePermissionLevel = level
+                        self.config.isEnabled = true
+                        self.config.activatedAt = Date()
+                        self.config.activatedBy = "caregiver_\(level.rawValue)"
+                        if let limit = dbReq.transferLimit {
+                            self.config.transferLimit = limit
+                        }
+                        if let limit = dbReq.withdrawalLimit {
+                            self.config.dailyWithdrawalLimit = limit
+                        }
+                        switch level {
+                        case .viewOnly:
+                            self.config.notifyTrustedContact = false
+                            self.config.requireTransactionApproval = false
+                        case .alertsOnly:
+                            self.config.notifyTrustedContact = true
+                            self.config.requireTransactionApproval = false
+                        case .fullCoPilot:
+                            self.config.notifyTrustedContact = true
+                            self.config.requireTransactionApproval = true
+                        }
+                    }
+                }
+                self.pendingRequest = nil
+                self.pendingDBRequestId = nil
+            case "denied":
+                // Client denied — clear pending state
+                self.pendingRequest = nil
+                self.pendingDBRequestId = nil
+            default:
+                break
             }
         } catch {
-            print("Supabase fetch pending request error: \(error)")
+            print("Supabase fetch request error: \(error)")
         }
     }
 
