@@ -12,7 +12,15 @@ import AVFoundation
 // MARK: - Gemini Service
 
 actor GeminiService {
-    private let apiKey = "AIzaSyAkB8D_d12I5hUoaFbOvJlWT5c0Q9d9iOg"
+    private let apiKey: String = {
+        guard let url = Bundle.main.url(forResource: "Secrets", withExtension: "plist"),
+              let data = try? Data(contentsOf: url),
+              let dict = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let key = dict["GEMINI_API_KEY"] as? String else {
+            fatalError("Missing Secrets.plist or GEMINI_API_KEY")
+        }
+        return key
+    }()
     private let endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
     private var conversationHistory: [[String: Any]] = []
 

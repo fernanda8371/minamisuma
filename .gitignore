@@ -1,3 +1,15 @@
+# Secrets
+Secrets.plist
+
+# Xcode
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+DerivedData/
+build/
+
+# macOS
+.DS_Store
 # Secrets — never commit
 .env
 MinamisumaCapitalOne/Config/SupabaseConfig.swift
