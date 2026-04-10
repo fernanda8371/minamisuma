@@ -35,7 +35,11 @@ struct TrustedContactsListView: View {
                     }
                     
                     if let controller {
-                        if controller.contacts.isEmpty {
+                        if controller.isLoading {
+                            ProgressView("Loading...")
+                                .font(.seniorBody)
+                                .padding(.vertical, 40)
+                        } else if controller.contacts.isEmpty {
                             emptyStateView
                         } else {
                             contactsList(controller: controller)
@@ -70,7 +74,11 @@ struct TrustedContactsListView: View {
                     .accessibilityLabel("Explain this screen")
                 }
             }
-            .sheet(isPresented: $showAddContact) {
+            .sheet(isPresented: $showAddContact, onDismiss: {
+                if let controller {
+                    Task { await controller.fetchContacts() }
+                }
+            }) {
                 if let controller {
                     AddTrustedContactView(controller: controller)
                 }
@@ -95,6 +103,11 @@ struct TrustedContactsListView: View {
             .onAppear {
                 if controller == nil {
                     controller = TrustedContactController(modelContext: modelContext)
+                }
+            }
+            .refreshable {
+                if let controller {
+                    await controller.fetchContacts()
                 }
             }
         }

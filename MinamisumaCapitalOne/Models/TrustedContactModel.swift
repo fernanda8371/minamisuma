@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftData
 
 // MARK: - Permission Level Enum
 
@@ -74,10 +73,9 @@ enum ContactRelationship: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Trusted Contact Model
+// MARK: - Trusted Contact Model (Supabase Codable)
 
-@Model
-final class TrustedContact {
+struct TrustedContact: Codable, Identifiable {
     var id: UUID
     var name: String
     var phoneNumber: String
@@ -93,26 +91,43 @@ final class TrustedContact {
     var alertOnUnusualActivity: Bool
     var sendBillReminders: Bool
     
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case phoneNumber = "phone_number"
+        case email
+        case relationship
+        case permissionLevel = "permission_level"
+        case isActive = "is_active"
+        case dateAdded = "date_added"
+        case alertOnLargeTransactions = "alert_on_large_transactions"
+        case largeTransactionThreshold = "large_transaction_threshold"
+        case alertOnUnusualActivity = "alert_on_unusual_activity"
+        case sendBillReminders = "send_bill_reminders"
+    }
+    
     init(
+        id: UUID = UUID(),
         name: String,
         phoneNumber: String,
         email: String,
         relationship: ContactRelationship,
         permissionLevel: PermissionLevel,
         isActive: Bool = true,
+        dateAdded: Date = Date(),
         alertOnLargeTransactions: Bool = false,
         largeTransactionThreshold: Double = 500.0,
         alertOnUnusualActivity: Bool = false,
         sendBillReminders: Bool = false
     ) {
-        self.id = UUID()
+        self.id = id
         self.name = name
         self.phoneNumber = phoneNumber
         self.email = email
         self.relationship = relationship
         self.permissionLevel = permissionLevel
         self.isActive = isActive
-        self.dateAdded = Date()
+        self.dateAdded = dateAdded
         self.alertOnLargeTransactions = alertOnLargeTransactions
         self.largeTransactionThreshold = largeTransactionThreshold
         self.alertOnUnusualActivity = alertOnUnusualActivity

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		9C4CECA82F89842D00F6B1B3 /* ScamFilterExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9C4CECA12F89842D00F6B1B3 /* ScamFilterExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F7C3BFAC2F899D9700A1EB6B /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = F7C3BFAB2F899D9700A1EB6B /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -122,6 +123,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F7C3BFAC2F899D9700A1EB6B /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +151,7 @@
 				9CE17E1C2F8961C100D8CC7A /* MinamisumaCapitalOneTests */,
 				9CE17E262F8961C100D8CC7A /* MinamisumaCapitalOneUITests */,
 				9C4CECA22F89842D00F6B1B3 /* ScamFilterExtension */,
+				F7C3BFAA2F899D8B00A1EB6B /* Frameworks */,
 				9CE17E0B2F8961BE00D8CC7A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -162,6 +165,13 @@
 				9C4CECA12F89842D00F6B1B3 /* ScamFilterExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		F7C3BFAA2F899D8B00A1EB6B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -209,6 +219,7 @@
 			);
 			name = MinamisumaCapitalOne;
 			packageProductDependencies = (
+				F7C3BFAB2F899D9700A1EB6B /* Supabase */,
 			);
 			productName = MinamisumaCapitalOne;
 			productReference = 9CE17E0A2F8961BE00D8CC7A /* MinamisumaCapitalOne.app */;
@@ -295,6 +306,9 @@
 			);
 			mainGroup = 9CE17E012F8961BE00D8CC7A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F7C3BFA92F899BDD00A1EB6B /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9CE17E0B2F8961BE00D8CC7A /* Products */;
 			projectDirPath = "";
@@ -598,7 +612,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = RJ2GKJ5SCW;
+				DEVELOPMENT_TEAM = N29SR9QZ6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -630,7 +644,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = RJ2GKJ5SCW;
+				DEVELOPMENT_TEAM = N29SR9QZ6X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -788,6 +802,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		F7C3BFA92F899BDD00A1EB6B /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase-community/supabase-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F7C3BFAB2F899D9700A1EB6B /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F7C3BFA92F899BDD00A1EB6B /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9CE17E022F8961BE00D8CC7A /* Project object */;
 }
