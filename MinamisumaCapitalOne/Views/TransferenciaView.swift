@@ -27,6 +27,8 @@ enum TipoTransaccion: String, CaseIterable {
 
 struct TransferenciaView: View {
 
+    var safetyController: SafetyModeController?
+
     let card = BankCard(
         holderName: "Lorenzo",
         cardType: "Amazon Platinium",
@@ -43,6 +45,7 @@ struct TransferenciaView: View {
     @State private var confirmarMonto: String = ""
     @State private var guardarContacto: Bool = false
     @State private var showConfirmacion: Bool = false
+    @State private var showSafetyBlock: Bool = false
 
     var montoEnLetras: String {
         guard let valor = Double(monto.replacingOccurrences(of: "$", with: "")),
@@ -59,7 +62,31 @@ struct TransferenciaView: View {
                 formSection
                 guardarContactoRow
 
+                // Safety mode warning banner
+                if let sc = safetyController, sc.isActive {
+                    HStack(spacing: 12) {
+                        Image(systemName: "shield.checkered")
+                            .font(.system(size: 18))
+                            .foregroundColor(.statusOrange)
+                        
+                        Text("Modo de Apoyo activo — limite de $\(Int(sc.config.transferLimit)) por transferencia")
+                            .font(.seniorCaption)
+                            .foregroundColor(.statusOrange)
+                    }
+                    .padding(14)
+                    .background(Color.statusOrange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                
                 SeniorPrimaryButton("Confirmar transferencia", color: .black) {
+                    if let sc = safetyController, sc.isActive {
+                        let montoValue = Double(monto.replacingOccurrences(of: "$", with: "")) ?? 0
+                        if !sc.isTransferAllowed(amount: montoValue) {
+                            showSafetyBlock = true
+                            return
+                        }
+                        sc.trackTransfer(to: nombreBeneficiario, amount: montoValue)
+                    }
                     showConfirmacion = true
                 }
                 .padding(.top, 4)
@@ -75,6 +102,13 @@ struct TransferenciaView: View {
             Button("Aceptar", role: .cancel) {}
         } message: {
             Text("Tu transferencia fue registrada correctamente.")
+        }
+        .alert("Transferencia bloqueada", isPresented: $showSafetyBlock) {
+            Button("Entendido", role: .cancel) {}
+        } message: {
+            if let sc = safetyController {
+                Text("El Modo de Apoyo limita las transferencias a $\(Int(sc.config.transferLimit)). Contacta a tu familiar de confianza para aprobar esta operacion.")
+            }
         }
     }
 

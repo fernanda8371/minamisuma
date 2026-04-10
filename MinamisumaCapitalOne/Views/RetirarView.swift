@@ -27,6 +27,8 @@ enum TipoRetiro: String, CaseIterable {
 
 struct RetirarView: View {
 
+    var safetyController: SafetyModeController?
+
     let card = BankCard(
         holderName: "Lorenzo",
         cardType: "Amazon Platinium",
@@ -39,6 +41,7 @@ struct RetirarView: View {
     @State private var tipoRetiro: TipoRetiro = .cajero
     @State private var montoTexto: String = ""
     @State private var showConfirmacion: Bool = false
+    @State private var showSafetyBlock: Bool = false
 
     private let montosSugeridos: [Double] = [200, 500, 1000, 2000]
 
@@ -54,12 +57,38 @@ struct RetirarView: View {
                 tipoRetiroSection
                 montoSection
                 infoBanner
+                // Safety mode warning banner
+                if let sc = safetyController, sc.isActive {
+                    HStack(spacing: 12) {
+                        Image(systemName: "shield.checkered")
+                            .font(.system(size: 18))
+                            .foregroundColor(.statusOrange)
+                        
+                        Text("Modo de Apoyo activo — limite diario de $\(Int(sc.config.dailyWithdrawalLimit))")
+                            .font(.seniorCaption)
+                            .foregroundColor(.statusOrange)
+                    }
+                    .padding(14)
+                    .background(Color.statusOrange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                
                 SeniorPrimaryButton(
                     "Confirmar retiro",
                     icon: "banknote.fill",
                     color: montoValido ? .black : Color(.systemGray3)
                 ) {
-                    if montoValido { showConfirmacion = true }
+                    if montoValido {
+                        if let sc = safetyController, sc.isActive {
+                            let montoValue = Double(montoTexto) ?? 0
+                            if !sc.isWithdrawalAllowed(amount: montoValue) {
+                                showSafetyBlock = true
+                                return
+                            }
+                            sc.trackWithdrawal(amount: montoValue)
+                        }
+                        showConfirmacion = true
+                    }
                 }
                 .disabled(!montoValido)
                 .padding(.top, 4)
@@ -75,6 +104,13 @@ struct RetirarView: View {
             Button("Aceptar", role: .cancel) {}
         } message: {
             Text("Tu retiro de \(montoFormateado) fue registrado.")
+        }
+        .alert("Retiro bloqueado", isPresented: $showSafetyBlock) {
+            Button("Entendido", role: .cancel) {}
+        } message: {
+            if let sc = safetyController {
+                Text("El Modo de Apoyo limita los retiros diarios a $\(Int(sc.config.dailyWithdrawalLimit)). Contacta a tu familiar de confianza para aprobar esta operacion.")
+            }
         }
     }
 

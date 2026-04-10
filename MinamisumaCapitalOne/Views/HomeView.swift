@@ -13,6 +13,9 @@ import SwiftUI
 struct HomeView: View {
     @State private var notificationCount: Int = 3
     @State private var showVoiceGuide: Bool = false
+    @Bindable var safetyController: SafetyModeController
+    @State private var showSafetyActivation: Bool = false
+    @State private var showPendingRequest: Bool = false
 
     let card = BankCard(
         holderName: "Lorenzo",
@@ -33,6 +36,54 @@ struct HomeView: View {
                     // Header
                     headerSection
                         .padding(.bottom, h * 0.02)
+                    
+                    // Pending caregiver request banner
+                    if safetyController.hasPendingCaregiverRequest {
+                        HStack(spacing: 10) {
+                            Image(systemName: "stethoscope")
+                                .font(.system(size: 16))
+                                .foregroundColor(.white)
+                            Text("Tu cuidador solicita activar el Modo de Apoyo")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Text("Ver")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.brandTeal)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.bottom, h * 0.01)
+                        .onTapGesture {
+                            showPendingRequest = true
+                        }
+                    }
+                    
+                    // Safety mode active banner
+                    if safetyController.isActive {
+                        HStack(spacing: 10) {
+                            Image(systemName: "shield.checkered")
+                                .font(.system(size: 16))
+                                .foregroundColor(.white)
+                            Text("Modo de Apoyo activo")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.white)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.statusGreen)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.bottom, h * 0.01)
+                        .onTapGesture {
+                            showSafetyActivation = true
+                        }
+                    }
 
                     // Card
                     cardSection
@@ -52,7 +103,7 @@ struct HomeView: View {
                             title: "Retirar",
                             icon: "banknote.fill",
                             destination: AnyView(
-                                RetirarView()
+                                RetirarView(safetyController: safetyController)
                             )
                         )
 
@@ -60,7 +111,7 @@ struct HomeView: View {
                             title: "Enviar dinero",
                             icon: "arrow.right.circle.fill",
                             destination: AnyView(
-                                TransferenciaView()
+                                TransferenciaView(safetyController: safetyController)
                             )
                         )
 
@@ -101,6 +152,38 @@ struct HomeView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
+            .alert("Actividad inusual detectada", isPresented: $safetyController.showSuggestionAlert) {
+                Button("Activar Modo de Apoyo") {
+                    showSafetyActivation = true
+                }
+                Button("Ahora no", role: .cancel) {}
+            } message: {
+                Text("Hemos detectado patrones inusuales en tu cuenta. Te recomendamos activar el Modo de Apoyo para proteger tus finanzas.")
+            }
+            .sheet(isPresented: $showSafetyActivation) {
+                SafetyModeActivationView(safetyController: safetyController)
+            }
+            .onAppear {
+                if safetyController.hasPendingCaregiverRequest {
+                    showPendingRequest = true
+                }
+            }
+        }
+        .overlay {
+            if showPendingRequest, let request = safetyController.pendingRequest {
+                ClientApprovalPopup(
+                    request: request,
+                    onApprove: {
+                        safetyController.approveCaregiver()
+                        showPendingRequest = false
+                    },
+                    onDeny: {
+                        safetyController.denyCaregiver()
+                        showPendingRequest = false
+                    }
+                )
+                .animation(.easeInOut, value: showPendingRequest)
+            }
         }
     }
 
@@ -264,7 +347,7 @@ struct HomeView: View {
 
 
             NavigationLink(
-                destination: ProfileView()
+                destination: ProfileView(safetyController: safetyController)
             ) {
 
                 HStack(spacing: 6) {
@@ -365,6 +448,5 @@ struct PlaceholderView: View {
 // MARK: - Preview
 
 #Preview {
-
-    HomeView()
+    HomeView(safetyController: SafetyModeController())
 }
