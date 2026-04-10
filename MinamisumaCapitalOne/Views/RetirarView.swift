@@ -9,6 +9,8 @@ import SwiftUI
 
 struct RetirarView: View {
 
+    var safetyController: SafetyModeController?
+
     let card = BankCard(
         holderName: "Lorenzo",
         cardType: "Amazon Platinium",
@@ -26,11 +28,11 @@ struct RetirarView: View {
     @State private var segundosRestantes: Int = 600
     @State private var timerActivo: Bool = false
     @State private var showCancelAlert: Bool = false
+    @State private var showSafetyBlock: Bool = false
+    @State private var timerTask: Task<Void, Never>?
 
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     private let montosSugeridos: [Double] = [200, 500, 1000, 2000]
 
-    // Escala de fuente: 1.0 normal · 1.3 grande
     private func fs(_ base: CGFloat) -> CGFloat { letraGrande ? ceil(base * 1.3) : base }
 
     var montoValido: Bool {
@@ -50,18 +52,34 @@ struct RetirarView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Retiro sin tarjeta")
         .navigationBarTitleDisplayMode(.inline)
-        .onReceive(timer) { _ in
-            guard timerActivo, segundosRestantes > 0 else {
-                if segundosRestantes == 0 { timerActivo = false }
-                return
+        .onChange(of: timerActivo) { _, activo in
+            timerTask?.cancel()
+            if activo {
+                timerTask = Task {
+                    while !Task.isCancelled && segundosRestantes > 0 {
+                        try? await Task.sleep(for: .seconds(1))
+                        guard !Task.isCancelled else { break }
+                        segundosRestantes -= 1
+                    }
+                    timerActivo = false
+                }
             }
-            segundosRestantes -= 1
         }
-        .alert("¿Cancelar retiro?", isPresented: $showCancelAlert) {
-            Button("Sí, cancelar", role: .destructive) { resetearFlujo() }
+        .onDisappear {
+            timerTask?.cancel()
+        }
+        .alert("Cancelar retiro?", isPresented: $showCancelAlert) {
+            Button("Si, cancelar", role: .destructive) { resetearFlujo() }
             Button("Continuar", role: .cancel) {}
         } message: {
-            Text("El código se eliminará y tendrás que generar uno nuevo.")
+            Text("El codigo se eliminara y tendras que generar uno nuevo.")
+        }
+        .alert("Retiro bloqueado", isPresented: $showSafetyBlock) {
+            Button("Entendido", role: .cancel) {}
+        } message: {
+            if let sc = safetyController {
+                Text("El Modo de Apoyo limita los retiros diarios a $\(Int(sc.config.dailyWithdrawalLimit)). Contacta a tu familiar de confianza para aprobar esta operacion.")
+            }
         }
     }
 
@@ -73,34 +91,59 @@ struct RetirarView: View {
             explicacionBanner
             montoSection
 
+            // Safety mode warning banner
+            if let sc = safetyController, sc.isActive {
+                HStack(spacing: 12) {
+                    Image(systemName: "shield.checkered")
+                        .font(.system(size: fs(18)))
+                        .foregroundColor(.statusOrange)
+
+                    Text("Modo de Apoyo activo — limite diario de $\(Int(sc.config.dailyWithdrawalLimit))")
+                        .font(.system(size: fs(13), design: .rounded))
+                        .foregroundColor(.statusOrange)
+                }
+                .padding(14)
+                .background(Color.statusOrange.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
             SeniorPrimaryButton(
-                "Generar código de retiro",
+                "Generar codigo de retiro",
                 icon: "lock.open.fill",
                 color: montoValido ? .black : Color(.systemGray3)
             ) {
-                generarCodigo()
+                if montoValido {
+                    if let sc = safetyController, sc.isActive {
+                        let montoValue = Double(montoTexto) ?? 0
+                        if !sc.isWithdrawalAllowed(amount: montoValue) {
+                            showSafetyBlock = true
+                            return
+                        }
+                        sc.trackWithdrawal(amount: montoValue)
+                    }
+                    generarCodigo()
+                }
             }
             .disabled(!montoValido)
             .padding(.top, 4)
-            .accessibilityLabel("Generar código de retiro")
+            .accessibilityLabel("Generar codigo de retiro")
             .accessibilityHint(montoValido
-                ? "Genera un código de 6 dígitos para usar en el cajero"
-                : "Selecciona o escribe un monto válido para continuar")
+                ? "Genera un codigo de 6 digitos para usar en el cajero"
+                : "Selecciona o escribe un monto valido para continuar")
         }
     }
 
-    // MARK: - Paso 2: código generado
+    // MARK: - Paso 2: codigo generado
 
     private var paso2: some View {
         VStack(spacing: 20) {
-            // Encabezado
             VStack(spacing: 10) {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: fs(52)))
                     .foregroundColor(.statusGreen)
                     .accessibilityHidden(true)
 
-                Text("Tu código está listo")
+                Text("Tu codigo esta listo")
                     .font(.system(size: fs(22), weight: .bold, design: .rounded))
                     .foregroundColor(.textPrimary)
 
@@ -110,11 +153,10 @@ struct RetirarView: View {
             }
             .padding(.top, 8)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Tu código está listo. Monto a retirar: \(montoFormateado)")
+            .accessibilityLabel("Tu codigo esta listo. Monto a retirar: \(montoFormateado)")
 
-            // Código grande
             VStack(spacing: 14) {
-                Text("Código de retiro")
+                Text("Codigo de retiro")
                     .font(.system(size: fs(14), weight: .medium, design: .rounded))
                     .foregroundColor(.textSecondary)
 
@@ -129,7 +171,7 @@ struct RetirarView: View {
                         .foregroundColor(colorTemporizador)
                         .accessibilityHidden(true)
 
-                    Text("Válido por \(tiempoFormateado)")
+                    Text("Valido por \(tiempoFormateado)")
                         .font(.system(size: fs(14), weight: .medium, design: .rounded))
                         .foregroundColor(colorTemporizador)
                 }
@@ -140,12 +182,10 @@ struct RetirarView: View {
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .shadow(color: .black.opacity(0.06), radius: 8, y: 4)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Tu código de retiro es \(codigoGenerado.map { String($0) }.joined(separator: " ")). Válido por \(tiempoFormateado).")
+            .accessibilityLabel("Tu codigo de retiro es \(codigoGenerado.map { String($0) }.joined(separator: " ")). Valido por \(tiempoFormateado).")
 
-            // Instrucciones
             instruccionesSection
 
-            // Cancelar
             Button(action: { showCancelAlert = true }) {
                 Text("Cancelar retiro")
                     .font(.system(size: fs(17), design: .rounded))
@@ -154,7 +194,7 @@ struct RetirarView: View {
                     .frame(minHeight: 48)
             }
             .accessibilityLabel("Cancelar retiro")
-            .accessibilityHint("Elimina el código y regresa a elegir monto")
+            .accessibilityHint("Elimina el codigo y regresa a elegir monto")
         }
     }
 
@@ -184,7 +224,7 @@ struct RetirarView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Tarjeta VISA terminación \(card.lastFour)")
+            .accessibilityLabel("Tarjeta VISA terminacion \(card.lastFour)")
             .accessibilityHint("Toca para cambiar de tarjeta")
 
             HStack(spacing: 6) {
@@ -200,7 +240,7 @@ struct RetirarView: View {
         }
     }
 
-    // MARK: - Explicación Banner
+    // MARK: - Explicacion Banner
 
     private var explicacionBanner: some View {
         HStack(spacing: 12) {
@@ -209,7 +249,7 @@ struct RetirarView: View {
                 .foregroundColor(.brandBlue)
                 .accessibilityHidden(true)
 
-            Text("Elige el monto y la app genera un **código temporal**. Ve a cualquier cajero, selecciona \"Retiro sin tarjeta\" e ingrésalo.")
+            Text("Elige el monto y la app genera un **codigo temporal**. Ve a cualquier cajero, selecciona \"Retiro sin tarjeta\" e ingresalo.")
                 .font(.system(size: fs(14), design: .rounded))
                 .foregroundColor(.textSecondary)
         }
@@ -217,19 +257,18 @@ struct RetirarView: View {
         .background(Color.brandBlue.opacity(0.08))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Cómo funciona: elige el monto, la app genera un código temporal. Ve a cualquier cajero, selecciona Retiro sin tarjeta e ingrésalo.")
+        .accessibilityLabel("Como funciona: elige el monto, la app genera un codigo temporal. Ve a cualquier cajero, selecciona Retiro sin tarjeta e ingresalo.")
     }
 
     // MARK: - Monto Section
 
     private var montoSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("¿Cuánto deseas retirar?")
+            Text("Cuanto deseas retirar?")
                 .font(.system(size: fs(14), design: .rounded))
                 .foregroundColor(.textSecondary)
                 .accessibilityHidden(true)
 
-            // Montos sugeridos
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 ForEach(montosSugeridos, id: \.self) { sugerido in
                     let key = String(Int(sugerido))
@@ -257,7 +296,6 @@ struct RetirarView: View {
                 }
             }
 
-            // Campo libre
             HStack {
                 Text("$")
                     .font(.system(size: fs(20), weight: .semibold, design: .rounded))
@@ -280,9 +318,9 @@ struct RetirarView: View {
             )
             .accessibilityLabel("Ingresar otro monto")
             .accessibilityHint("Escribe la cantidad que deseas retirar en pesos")
-            .accessibilityValue(montoTexto.isEmpty ? "Vacío" : "\(montoTexto) pesos")
+            .accessibilityValue(montoTexto.isEmpty ? "Vacio" : "\(montoTexto) pesos")
 
-            Text("Máximo $5,000 por retiro")
+            Text("Maximo $5,000 por retiro")
                 .font(.system(size: fs(13), design: .rounded))
                 .foregroundColor(Color(.systemGray3))
                 .padding(.leading, 4)
@@ -293,7 +331,7 @@ struct RetirarView: View {
 
     private var instruccionesSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("¿Cómo usarlo?")
+            Text("Como usarlo?")
                 .font(.system(size: fs(14), design: .rounded))
                 .foregroundColor(.textSecondary)
                 .padding(.bottom, 14)
@@ -336,9 +374,9 @@ struct RetirarView: View {
     }
 
     private let instrucciones = [
-        "Ve a cualquier cajero automático.",
-        "Selecciona la opción \"Retiro sin tarjeta\".",
-        "Ingresa el código de 6 dígitos mostrado arriba.",
+        "Ve a cualquier cajero automatico.",
+        "Selecciona la opcion \"Retiro sin tarjeta\".",
+        "Ingresa el codigo de 6 digitos mostrado arriba.",
         "Confirma el monto y retira tu efectivo."
     ]
 

@@ -2,8 +2,8 @@
 //  TransferenciaView.swift
 //  MinamisumaCapitalOne
 //
-//  Transferencia con detección automática CLABE/tarjeta
-//  + accesibilidad completa + letra adaptable
+//  Transferencia con deteccion automatica CLABE/tarjeta
+//  + accesibilidad completa + letra adaptable + safety mode
 //
 
 import SwiftUI
@@ -11,14 +11,14 @@ import SwiftUI
 // MARK: - Tipo de cuenta detectado
 
 private enum TipoCuentaDetectado: Equatable {
-    case clabe       // 18 dígitos
-    case tarjeta     // 16 dígitos
+    case clabe
+    case tarjeta
     case incompleto
 
     var etiqueta: String {
         switch self {
         case .clabe:      return "CLABE interbancaria"
-        case .tarjeta:    return "Número de tarjeta"
+        case .tarjeta:    return "Numero de tarjeta"
         case .incompleto: return ""
         }
     }
@@ -42,6 +42,8 @@ private enum TipoCuentaDetectado: Equatable {
 
 struct TransferenciaView: View {
 
+    var safetyController: SafetyModeController?
+
     let card = BankCard(
         holderName: "Lorenzo",
         cardType: "Amazon Platinium",
@@ -59,10 +61,11 @@ struct TransferenciaView: View {
     @State private var confirmarMonto: String = ""
     @State private var guardarContacto: Bool = false
     @State private var showConfirmacion: Bool = false
+    @State private var showSafetyBlock: Bool = false
 
     private func fs(_ base: CGFloat) -> CGFloat { letraGrande ? ceil(base * 1.3) : base }
 
-    // MARK: - Detección automática
+    // MARK: - Deteccion automatica
 
     private var tipoCuenta: TipoCuentaDetectado {
         let n = numeroCuenta.filter(\.isNumber).count
@@ -100,18 +103,44 @@ struct TransferenciaView: View {
                 montoSection
                 guardarContactoRow
 
+                // Safety mode warning banner
+                if let sc = safetyController, sc.isActive {
+                    HStack(spacing: 12) {
+                        Image(systemName: "shield.checkered")
+                            .font(.system(size: fs(18)))
+                            .foregroundColor(.statusOrange)
+
+                        Text("Modo de Apoyo activo — limite de $\(Int(sc.config.transferLimit)) por transferencia")
+                            .font(.system(size: fs(13), design: .rounded))
+                            .foregroundColor(.statusOrange)
+                    }
+                    .padding(14)
+                    .background(Color.statusOrange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
                 SeniorPrimaryButton(
                     "Confirmar transferencia",
                     color: formularioValido ? .black : Color(.systemGray3)
                 ) {
-                    if formularioValido { showConfirmacion = true }
+                    if formularioValido {
+                        if let sc = safetyController, sc.isActive {
+                            let montoValue = Double(monto.replacingOccurrences(of: "$", with: "")) ?? 0
+                            if !sc.isTransferAllowed(amount: montoValue) {
+                                showSafetyBlock = true
+                                return
+                            }
+                            sc.trackTransfer(to: nombreBeneficiario, amount: montoValue)
+                        }
+                        showConfirmacion = true
+                    }
                 }
                 .disabled(!formularioValido)
                 .padding(.top, 4)
                 .accessibilityLabel("Confirmar transferencia")
                 .accessibilityHint(formularioValido
                     ? "Toca dos veces para enviar la transferencia"
-                    : "Completa todos los campos para activar este botón")
+                    : "Completa todos los campos para activar este boton")
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -124,6 +153,13 @@ struct TransferenciaView: View {
             Button("Aceptar", role: .cancel) {}
         } message: {
             Text("Tu transferencia fue registrada correctamente.")
+        }
+        .alert("Transferencia bloqueada", isPresented: $showSafetyBlock) {
+            Button("Entendido", role: .cancel) {}
+        } message: {
+            if let sc = safetyController {
+                Text("El Modo de Apoyo limita las transferencias a $\(Int(sc.config.transferLimit)). Contacta a tu familiar de confianza para aprobar esta operacion.")
+            }
         }
     }
 
@@ -154,7 +190,7 @@ struct TransferenciaView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Tarjeta VISA, terminación \(card.lastFour)")
+            .accessibilityLabel("Tarjeta VISA, terminacion \(card.lastFour)")
             .accessibilityHint("Toca para cambiar de tarjeta")
 
             HStack(spacing: 6) {
@@ -175,7 +211,7 @@ struct TransferenciaView: View {
     private var beneficiarioSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("¿A quién le envías?")
+                Text("A quien le envias?")
                     .font(.system(size: fs(14), design: .rounded))
                     .foregroundColor(.textSecondary)
                 Spacer()
@@ -194,7 +230,7 @@ struct TransferenciaView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
                 .accessibilityLabel("Nombre del destinatario")
-                .accessibilityHint("Ingresa el nombre completo de la persona a quien le envías")
+                .accessibilityHint("Ingresa el nombre completo de la persona a quien le envias")
 
             if !nombreBeneficiario.trimmingCharacters(in: .whitespaces).isEmpty {
                 Text(nombreBeneficiario)
@@ -211,12 +247,12 @@ struct TransferenciaView: View {
 
     private var cuentaDestinoSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("CLABE o número de tarjeta")
+            Text("CLABE o numero de tarjeta")
                 .font(.system(size: fs(14), design: .rounded))
                 .foregroundColor(.textSecondary)
                 .accessibilityHidden(true)
 
-            TextField("16 dígitos (tarjeta) · 18 dígitos (CLABE)", text: $numeroCuenta)
+            TextField("16 digitos (tarjeta) - 18 digitos (CLABE)", text: $numeroCuenta)
                 .font(.system(size: fs(16), weight: .medium, design: .monospaced))
                 .keyboardType(.numberPad)
                 .padding(16)
@@ -234,15 +270,14 @@ struct TransferenciaView: View {
                     let soloNum = nuevo.filter(\.isNumber)
                     if soloNum.count > 18 { numeroCuenta = String(soloNum.prefix(18)) }
                 }
-                .accessibilityLabel("Número de cuenta o CLABE")
-                .accessibilityHint("Ingresa 16 dígitos para tarjeta o 18 dígitos para CLABE interbancaria")
+                .accessibilityLabel("Numero de cuenta o CLABE")
+                .accessibilityHint("Ingresa 16 digitos para tarjeta o 18 digitos para CLABE interbancaria")
                 .accessibilityValue(
                     tipoCuenta == .incompleto
-                        ? "\(digitosIngresados) dígitos ingresados"
+                        ? "\(digitosIngresados) digitos ingresados"
                         : "Detectado como \(tipoCuenta.etiqueta)"
                 )
 
-            // Badge de detección / contador
             if tipoCuenta != .incompleto {
                 HStack(spacing: 8) {
                     Image(systemName: tipoCuenta.icono)
@@ -260,11 +295,11 @@ struct TransferenciaView: View {
                 .animation(.easeInOut(duration: 0.2), value: tipoCuenta.etiqueta)
                 .accessibilityLabel("Tipo detectado: \(tipoCuenta.etiqueta)")
             } else if digitosIngresados > 0 {
-                Text("\(digitosIngresados) / 16 tarjeta · 18 CLABE")
+                Text("\(digitosIngresados) / 16 tarjeta - 18 CLABE")
                     .font(.system(size: fs(13), design: .rounded))
                     .foregroundColor(Color(.systemGray3))
                     .transition(.opacity)
-                    .accessibilityLabel("\(digitosIngresados) dígitos ingresados. Se necesitan 16 para tarjeta o 18 para CLABE.")
+                    .accessibilityLabel("\(digitosIngresados) digitos ingresados. Se necesitan 16 para tarjeta o 18 para CLABE.")
             }
         }
     }
@@ -278,7 +313,6 @@ struct TransferenciaView: View {
                 .foregroundColor(.textSecondary)
                 .accessibilityHidden(true)
 
-            // Monto
             HStack {
                 Text("$")
                     .font(.system(size: fs(20), weight: .semibold, design: .rounded))
@@ -296,9 +330,8 @@ struct TransferenciaView: View {
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.systemGray4), lineWidth: 1))
             .accessibilityLabel("Monto a transferir")
             .accessibilityHint("Ingresa la cantidad en pesos")
-            .accessibilityValue(monto.isEmpty ? "Vacío" : "\(monto) pesos")
+            .accessibilityValue(monto.isEmpty ? "Vacio" : "\(monto) pesos")
 
-            // Confirmar monto
             HStack {
                 Text("$")
                     .font(.system(size: fs(20), weight: .semibold, design: .rounded))
@@ -327,11 +360,10 @@ struct TransferenciaView: View {
             .accessibilityLabel("Confirmar monto")
             .accessibilityHint("Vuelve a ingresar la misma cantidad para confirmar")
             .accessibilityValue(
-                confirmarMonto.isEmpty ? "Vacío" :
+                confirmarMonto.isEmpty ? "Vacio" :
                 (montoCoincide ? "Los montos coinciden" : "Los montos no coinciden")
             )
 
-            // Retroalimentación de coincidencia
             if montoCoincide {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill")
@@ -354,7 +386,6 @@ struct TransferenciaView: View {
                 .transition(.opacity)
             }
 
-            // Monto en letras
             if !montoEnLetras.isEmpty {
                 Text(montoEnLetras)
                     .font(.system(size: fs(13), design: .rounded))
@@ -406,7 +437,7 @@ struct TransferenciaView: View {
         let centavos = Int((valor - Double(entero)) * 100)
         let unidades = ["", "un", "dos", "tres", "cuatro", "cinco", "seis", "siete",
                         "ocho", "nueve", "diez", "once", "doce", "trece", "catorce",
-                        "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve"]
+                        "quince", "dieciseis", "diecisiete", "dieciocho", "diecinueve"]
         let decenas = ["", "", "veinte", "treinta", "cuarenta", "cincuenta",
                        "sesenta", "setenta", "ochenta", "noventa"]
         let centenas = ["", "cien", "doscientos", "trescientos", "cuatrocientos",
