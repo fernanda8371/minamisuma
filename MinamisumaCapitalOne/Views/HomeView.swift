@@ -28,15 +28,12 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geo in
-                let h = geo.size.height
-
-                VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 16) {
 
                     // Header
                     headerSection
-                        .padding(.bottom, h * 0.02)
-                    
+
                     // Pending caregiver request banner
                     if safetyController.hasPendingCaregiverRequest {
                         HStack(spacing: 10) {
@@ -55,12 +52,11 @@ struct HomeView: View {
                         .padding(.vertical, 10)
                         .background(Color.brandTeal)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.bottom, h * 0.01)
                         .onTapGesture {
                             showPendingRequest = true
                         }
                     }
-                    
+
                     // Safety mode active banner
                     if safetyController.isActive {
                         HStack(spacing: 10) {
@@ -79,7 +75,6 @@ struct HomeView: View {
                         .padding(.vertical, 10)
                         .background(Color.statusGreen)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.bottom, h * 0.01)
                         .onTapGesture {
                             showSafetyActivation = true
                         }
@@ -87,8 +82,7 @@ struct HomeView: View {
 
                     // Card
                     cardSection
-                        .frame(height: h * 0.25)
-                        .padding(.bottom, h * 0.025)
+                        .frame(height: 200)
 
                     // Menu Buttons Grid
                     LazyVGrid(
@@ -96,7 +90,7 @@ struct HomeView: View {
                             GridItem(.flexible()),
                             GridItem(.flexible())
                         ],
-                        spacing: h * 0.015
+                        spacing: 12
                     ) {
 
                         MenuButton(
@@ -139,16 +133,12 @@ struct HomeView: View {
                             )
                         )
                     }
-                    .frame(height: h * 0.33)
-
-                    Spacer()
 
                     // Bottom Buttons
                     bottomButtons
-                        .padding(.bottom, h * 0.01)
                 }
                 .padding(.horizontal, 20)
-                .frame(height: h)
+                .padding(.vertical, 8)
             }
             .background(Color(.systemGroupedBackground))
             .navigationBarHidden(true)
@@ -162,6 +152,9 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showSafetyActivation) {
                 SafetyModeActivationView(safetyController: safetyController)
+            }
+            .sheet(isPresented: $showVoiceGuide) {
+                VoiceGuideView()
             }
             .onAppear {
                 safetyController.startPolling()
