@@ -13,6 +13,8 @@ struct MinamisumaCapitalOneApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Item.self,
+            TrustedContact.self,
+            AlertEvent.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
