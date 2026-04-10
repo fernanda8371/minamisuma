@@ -68,7 +68,7 @@ struct HomeView: View {
                             title: "Movimientos",
                             icon: "list.bullet.rectangle.fill",
                             destination: AnyView(
-                                PlaceholderView(title: "Mis movimientos")
+                                MovimientosView()
                             )
                         )
 
