@@ -1,91 +1,87 @@
 import SwiftUI
-import SwiftData
 
 struct ScamProtectView: View {
-    @Query(sort: \ScamMessage.detectedAt, order: .reverse)
-    private var messages: [ScamMessage]
-
-    @Environment(\.modelContext) private var context
+    @State private var entries: [ScamMessageEntry] = []
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if messages.isEmpty {
-                    ContentUnavailableView(
-                        "No Scams Detected",
-                        systemImage: "checkmark.shield",
-                        description: Text("Suspicious messages from unknown senders will appear here.")
-                    )
-                } else {
-                    List(messages) { message in
-                        ScamMessageRow(message: message)
-                    }
+        Group {
+            if entries.isEmpty {
+                ContentUnavailableView(
+                    "Sin movimientos sospechosos",
+                    systemImage: "checkmark.shield",
+                    description: Text("Los mensajes sospechosos de remitentes desconocidos aparecerán aquí.")
+                )
+            } else {
+                List(entries) { entry in
+                    ScamEntryRow(entry: entry)
                 }
+                .listStyle(.insetGrouped)
             }
-            .navigationTitle("Scam Protection")
-            .toolbar {
-                if !messages.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Sync", systemImage: "arrow.clockwise") {
-                            Task { await SupabaseService.shared.syncPendingMessages() }
-                        }
+        }
+        .navigationTitle("Movimientos sospechosos")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            if !entries.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Sincronizar", systemImage: "arrow.clockwise") {
+                        Task { await SupabaseService.shared.syncPendingMessages() }
                     }
                 }
             }
         }
         .task {
-            await SupabaseService.shared.syncPendingMessages()
+            await reload()
         }
+        .refreshable {
+            await reload()
+        }
+    }
+
+    private func reload() async {
+        await SupabaseService.shared.syncPendingMessages()
+        entries = await SharedScamStore.shared.loadPending()
     }
 }
 
 // MARK: - Row
 
-private struct ScamMessageRow: View {
-    let message: ScamMessage
+private struct ScamEntryRow: View {
+    let entry: ScamMessageEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Label(message.categoryDisplayName, systemImage: "exclamationmark.triangle.fill")
+                Label(entry.category.displayName, systemImage: "exclamationmark.triangle.fill")
                     .font(.subheadline.bold())
                     .foregroundStyle(.orange)
 
                 Spacer()
 
-                if message.isUploaded {
-                    Image(systemName: "checkmark.icloud")
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Uploaded to database")
-                }
+                ConfidenceBadge(score: entry.confidenceScore)
             }
 
-            Text(message.messagePreview)
+            Text(entry.messagePreview)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
 
             HStack {
-                Text(message.sender.isEmpty ? "Unknown sender" : message.sender)
+                Text(entry.sender.isEmpty ? "Remitente desconocido" : entry.sender)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
 
                 Spacer()
 
-                Text(message.detectedAt, style: .relative)
+                Text(entry.detectedAt, style: .relative)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-
-                ConfidenceBadge(score: message.confidenceScore)
             }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabel(for: message))
-    }
-
-    private func accessibilityLabel(for message: ScamMessage) -> String {
-        "\(message.categoryDisplayName) scam detected from \(message.sender.isEmpty ? "unknown sender" : message.sender), \(message.detectedAt.formatted(date: .abbreviated, time: .shortened))"
+        .accessibilityLabel(
+            "\(entry.category.displayName), de \(entry.sender.isEmpty ? "remitente desconocido" : entry.sender), \(entry.detectedAt.formatted(date: .abbreviated, time: .shortened))"
+        )
     }
 }
 
@@ -96,9 +92,9 @@ private struct ConfidenceBadge: View {
 
     private var label: String {
         switch score {
-        case 0.9...: "High"
-        case 0.75...: "Med"
-        default:    "Low"
+        case 0.9...: "Alto"
+        case 0.75...: "Medio"
+        default:    "Bajo"
         }
     }
 
@@ -117,11 +113,12 @@ private struct ConfidenceBadge: View {
             .padding(.vertical, 2)
             .background(color.opacity(0.15), in: .capsule)
             .foregroundStyle(color)
-            .accessibilityLabel("Confidence: \(label)")
+            .accessibilityLabel("Nivel de riesgo: \(label)")
     }
 }
 
 #Preview {
-    ScamProtectView()
-        .modelContainer(for: ScamMessage.self, inMemory: true)
+    NavigationStack {
+        ScamProtectView()
+    }
 }
